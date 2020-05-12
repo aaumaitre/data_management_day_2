@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+  <head>
+    <title>Data management with R</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Ariane Aumaitre" />
+    <link rel="stylesheet" href="xaringan-themer.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Data management with R
+## -day 2-
+### Ariane Aumaitre
+### European University Institute
+### 15/05/2020
+
+---
+
+
+
+
+
+background-image: url(https://jules32.github.io/useR-2019-keynote/img/horst-welcome_to_rstats_twitter.png)
+background-size: 600px
+background-position: 60% 90%
+# Recap of yesterday
+&lt;/br&gt; 
+* Getting your data into R 💻
+
+* Data cleaning and transformation 🧹
+
+* Writing clean, readable code 🤩
+
+---
+
+
+background-image: url(https://media.giphy.com/media/l0K4c8bZHJzDCmg6Y/giphy.gif)
+background-size: 500px
+background-position: 50% 80%
+# Goals for today
+&lt;/br&gt; 
+* Tidy data ad reshaping
+
+* Binding and joining data
+
+* Visualization with ggplot 🎨
+
+---
+
+class: inverted, middle, center
+# 1. Tidy data
+---
+# What is tidy data?
+&lt;/br&gt;
+* One column per **variable**, one **observation** per row
+
+.center[![](https://d33wubrfki0l68.cloudfront.net/6f1ddb544fc5c69a2478e444ab8112fb0eea23f8/91adc/images/tidy-1.png)]
+
+* A way of giving a **clear and coherent structure** to your data
+
+* Makes analysis and data manipulation easier
+
+---
+# Tidying data: from wide to long
+
+.center[![](https://d33wubrfki0l68.cloudfront.net/3aea19108d39606bbe49981acda07696c0c7fcd8/2de65/images/tidy-9.png)]
+
+* With `pivot_longer()`, you can transform data from **wide** to **long** format
+
+* It '**lengthens data**, increasing the number of rows and decreasing the number of columns'
+
+* Syntax:
+
+
+```r
+data%&gt;%
+  pivot_longer(cols=, names_to = "name", values_to = "value")
+```
+
+---
+# Tidying data: from wide to long (II)
+
+
+
+```r
+wide_data &lt;- read_csv("wide_data.csv")
+
+head(wide_data, 3)
+```
+
+```
+## # A tibble: 3 x 11
+##   age_group `2008` `2009` `2010` `2011` `2012` `2013` `2014` `2015` `2016`
+##   &lt;chr&gt;      &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;
+## 1 0-18      14655. 15343. 15230. 14901. 15018. 14077. 13845. 14369. 15205.
+## 2 19-35     16638. 17478. 17178. 16384. 15880. 15156. 14432. 14775. 15389.
+## 3 36-65     17182. 18100. 18077. 17577. 17465. 16752. 16387. 16635. 17402.
+## # ... with 1 more variable: `2017` &lt;dbl&gt;
+```
+
+How can we transform into long format?
+
+
+```r
+long_data &lt;- data%&gt;%
+              ----(cols = ---, --- = "year", --- = "avg_income")
+```
+---
+# Tidying data: from wide to long (III)
+
+
+```r
+long_data &lt;- wide_data%&gt;%
+              pivot_longer(cols = 2:11, names_to = "year", values_to = "avg_income")
+
+head(long_data)
+```
+
+```
+## # A tibble: 6 x 3
+##   age_group year  avg_income
+##   &lt;chr&gt;     &lt;chr&gt;      &lt;dbl&gt;
+## 1 0-18      2008      14655.
+## 2 0-18      2009      15343.
+## 3 0-18      2010      15230.
+## 4 0-18      2011      14901.
+## 5 0-18      2012      15018.
+## 6 0-18      2013      14077.
+```
+---
+# From long to wide: pivot_wider()
+
+.center[![](https://d33wubrfki0l68.cloudfront.net/8350f0dda414629b9d6c354f87acf5c5f722be43/bcb84/images/tidy-8.png)]
+
+* `pivot_wider` performs the inverse transformation than `pivot_longer()`
+
+
+```r
+data%&gt;%
+  pivot_wider(names_from = key, values_from = value)
+```
+---
+# pivot_wider() in practice
+
+* Let's imagine we want to compute the difference in average income between the younger and the older working age groups. But our data looks like this:
+
+
+
+
+
+```r
+summarized_data
+```
+
+```
+## # A tibble: 4 x 5
+##   age_group   mean   min     max  gini
+##   &lt;chr&gt;      &lt;dbl&gt; &lt;dbl&gt;   &lt;dbl&gt; &lt;dbl&gt;
+## 1 0-18        222.     0  27213. 0.971
+## 2 19-35      6350.     0  57258. 0.631
+## 3 36-65     11906.     0 248676. 0.583
+## 4 65+         548.     0 151738. 0.983
+```
+
+* We will need to filter our data, select the relevant columns, transform to wide format and compute the difference
+
+
+```r
+summarized_data%&gt;%
+  filter(--- %in% c("---", "---"))%&gt;%
+  select(---,---)%&gt;%
+  pivot_wider(names_from = ---, values_from = ---)%&gt;%
+  mutate(difference = `36-65` - `18-35`)
+```
+
+---
+
+# pivot_wider() in practice
+
+&lt;/br&gt;
+
+```r
+summarized_data%&gt;%
+  filter(age_group %in% c("19-35", "36-65"))%&gt;%
+  select(age_group,mean)%&gt;%
+  pivot_wider(names_from = age_group, values_from = mean)%&gt;%
+  mutate(difference = `36-65` - `19-35`)
+```
+
+```
+## # A tibble: 1 x 3
+##   `19-35` `36-65` difference
+##     &lt;dbl&gt;   &lt;dbl&gt;      &lt;dbl&gt;
+## 1   6350.  11906.      5556.
+```
+
+---
+class: inverse, center, middle
+# 2. Binding and joining data
+---
+# Binding data
+&lt;/br&gt; 
+* `rbind` and `cbind` are the most straightforward way of joining dataframes together
+
+
+```r
+new_data &lt;- cbind(data1, data2)
+```
+
+.center[![](https://opinionessobreciencia.files.wordpress.com/2016/06/bind-abajo.png)]
+---
+background-image: url(https://data-lessons.github.io/gapminder-R/fig/dplyr-joins.png)
+background-size: 400px
+background-position: 50% 75%
+# Joining data by id
+
+&lt;/br&gt;
+* You need to have an **id** or a **'key'** that identifies the rows in the different dataframes
+
+* There are different ways of joining data:
+&lt;/br&gt;
+
+
+---
+
+# Joining individual + household data
+
+&lt;/br&gt;
+* Let's bring together our individual income dataset with household information. We can do this using **household_id** as a key:
+
+
+```r
+joint_data &lt;- ---_join(---, ---, by = "---")
+```
+
+---
+# Joining individual + household data
+&lt;/br&gt;
+
+
+
+```r
+hh_data &lt;- read.csv("household_data.csv")
+joint_data &lt;- left_join(data, hh_data, by = "household_id")
+```
+
+We can also write it as:
+
+
+```r
+joint_data &lt;- data%&gt;%
+    left_join(hh_data, by = "household_id")
+```
+
+
+```r
+head(joint_data)
+```
+
+```
+##   person_id household_id year_born sex employed retired education
+## 1       101            1      1949   1        0       1       300
+## 2       102            1      1951   2        0       0       300
+## 3       301            3      1965   2        1       0       500
+## 4       302            3      1993   2        1       0       500
+## 5       303            3      1996   2        0       0       344
+## 6       401            4      1958   2        0       0       500
+##   net_income gross_income hh_income n_members units_consumption
+## 1        0.0         0.00   31038.9         2               1.5
+## 2        0.0         0.00   31038.9         2               1.5
+## 3    18470.4     22095.67   26620.4         2               2.0
+## 4     6240.0      7042.30   26620.4         2               2.0
+## 5     2210.0      2396.34   26620.4         2               2.0
+## 6     3120.0      3362.77   20525.0         2               2.0
+##   hh_composition poverty
+## 1              7       0
+## 2              7       0
+## 3             11       0
+## 4             11       0
+## 5             11       0
+## 6             11       0
+```
+---
+class: inverted, middle, center
+
+# 3. Data visualization with ggplot2
+
+---
+background-image: url(https://pbs.twimg.com/media/DsdIzJ3VsAAbjMW?format=jpg&amp;name=900x900)
+background-size: 500px
+background-position: 50% 90%
+
+# The ggplot2 package
+&lt;/br&gt;
+* Part of the tidyverse (you can pipe your way to a ggplot!)
+
+* Layered syntax to create graphics
+
+* Great degree of customization
+
+---
+
+# ggplot2 layered syntax
+
+&lt;/br&gt;
+
+
+```r
+ggplot2(data= , aes(x=, y= ,…))+
+  geom_*()
+```
+
+* The **data**: your dataset
+
+* Within **aes**, you neet to tell ggplot **how to map variables to the plotting area**
+  + aes include x,y,color,fill, size,shape, …
+  
+* With your chosen `geom`, you're telling ggplot **how to plot your variables**
+  + geom_point(), geom_line(), geom_col(), geom_density()...
+  
+  + Full list of geoms: https://ggplot2.tidyverse.org/reference/
+
+* Layers are connected with the `+` symbol
+
+---
+
+
+
+# A basic ggplot: geom_point()
+
+How related is personal income to household income?
+
+
+```r
+joint_data%&gt;%
+  mutate(age = 2018 - year_born)%&gt;%
+  filter(age %in% 18:65)%&gt;%
+  ggplot(aes(x=net_income, y = hh_income))+
+  geom_point(alpha = .5)
+```
+
+![](day_2_files/figure-html/unnamed-chunk-17-1.png)&lt;!-- --&gt;
+
+Don't worry, we'll make it prettier!
+---
+# A basic ggplot: geom_col()
+
+
+```r
+joint_data%&gt;%
+  mutate(age = 2018 - year_born,
+         age_group  = case_when(age %in% 0:18 ~ "0-18",
+                      age %in% 19:35 ~ "19-35",
+                      age %in% 36:65 ~ "36-65",
+                      age &gt; 65 ~ "65+"))%&gt;%
+  group_by(age_group)%&gt;%
+  summarize(avg_income = mean(hh_income/units_consumption, na.rm = TRUE))%&gt;%
+  ggplot(aes(x= age_group, y= avg_income, fill = age_group))+
+  geom_col()
+```
+
+![](day_2_files/figure-html/unnamed-chunk-18-1.png)&lt;!-- --&gt;
+---
+
+# Your turn to build a line plot
+
+Let's work on the wide_data.csv that we converted to long format earlier. You should produce a line plot (geom_line()). Map year to x, avg_income to y and color to age_group.
+
+
+```r
+wide_data%&gt;%
+              pivot_longer(cols = 2:11, names_to = "year", values_to = "avg_income")%&gt;%
+    mutate(year = as.numeric(year))%&gt;%
+  ---(aes(--- = ---, --- = ---, color = ---))+
+  ---()
+```
+
+
+![](day_2_files/figure-html/unnamed-chunk-20-1.png)&lt;!-- --&gt;
+---
+# Customizing your ggplots
+
+* To customize **non-data** components of your plot, we use **themes**
+
+* You can use built-in ggplot themes or create your own
+
+* All theme components can be found here https://ggplot2.tidyverse.org/reference/theme.html
+
+* If you want to combine a built-in theme with your own customization, remember to write your `theme()` function &lt;int&gt;after&lt;/int&gt; the built-in theme call
+
+
+```r
+p+
+  theme_minimal()
+```
+
+![](day_2_files/figure-html/unnamed-chunk-21-1.png)&lt;!-- --&gt;
+---
+# Customizing your ggplots (II)
+
+* Changing text can be done with `labs()`
+
+
+```r
+p +
+  theme_minimal()+
+  labs(title = "Disposable income by age group, Spain",
+    x = "year",
+    y = "Equivalized disposable income",
+    color = "Age group")
+```
+
+![](day_2_files/figure-html/unnamed-chunk-22-1.png)&lt;!-- --&gt;
+
+---
+
+# Customizing your ggplots (III)
+
+* It is possible to change the **limits**, the **breaks** and the **labels** of any aes in ggplot. This is done through scales.
+
+* Both our x and y are continuous, and their elements can be modified within `scale_x_continuous()` and `scale_y_continuous()`
+
+
+.pull-left[
+
+```r
+p +
+  theme_minimal()+
+  labs(title = "Disposable income by age group, Spain",
+    x = "year",
+    y = "Equivalized disposable income",
+    color = "Age group")+
+  scale_x_continuous(breaks = seq(2008, 2017, by = 2))
+```
+]
+
+.pull-right[
+![](day_2_files/figure-html/plot-label-out-1.png)&lt;!-- --&gt;
+]
+---
+# Customizing your ggplots (IV)
+
+* When having discrete scales in ggplot2, like color in our case, there are two functions that you can use
+* If you only want to change limits, breaks and labels, these can be modified within `scale_color_discrete()`
+* If you want to change **the values of the colors** as well, you need to use `scale_color_manual()`to change the **values** argument
+  
+  .pull-left[
+
+```r
+p +
+  labs(title = "Disposable income by age group, Spain",
+    x = "year",
+    y = "Equivalized disposable income",
+    color = "Age group")+
+  scale_x_continuous(breaks = seq(2008, 2017, by = 2))+
+  scale_color_manual(values = c("#B82F77", "#5E4764", "#9873A2", "#BEB1C1"))+
+  theme_minimal()
+```
+]
+
+.pull-right[
+![](day_2_files/figure-html/plot-label-out2-1.png)&lt;!-- --&gt;
+]
+
+---
+
+
+background-image: url(https://i.imgur.com/R8I8TES.png)
+background-size: 800px
+background-position: 50% 50%
+---
+# Final touch
+
+```r
+wide_data%&gt;%
+  pivot_longer(cols = 2:11, names_to = "year", values_to = "avg_income")%&gt;%
+  mutate(year = as.numeric(year))%&gt;%
+  ggplot(aes(x=year, y = avg_income, color = age_group))+
+  geom_line(size = 1.5)+
+  labs(title = "Disposable income by age group, Spain",
+       x = NULL,
+       y = "Equivalized\ndisposable\nincome",
+       color = "Age:",
+       caption = "Data: Encuesta de Condiciones de Vida")+
+  scale_x_continuous(breaks = seq(2008, 2017, by = 2))+
+  scale_y_continuous(labels = function(x) paste0(x, "€"))+
+  scale_color_manual(values = c("#B82F77", "#5E4764", "#9873A2", "#BEB1C1"))+
+  theme_minimal()+
+  theme(legend.position = "top",
+        axis.title.y = element_text(angle = 0, color = "grey40", 
+                                    size = 8, hjust = 0),
+        plot.title = element_text(face = "bold", hjust = 0.5),
+        plot.caption = element_text(color = "grey40"))
+```
+
+---
+
+class: inverse, middle, center
+
+# Any questions?
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>

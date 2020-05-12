@@ -1,0 +1,471 @@
+---
+title: "Data management with R"
+subtitle: "-day 2-"
+author: "Ariane Aumaitre"
+institute: "European University Institute"
+date: "15/05/2020"
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    css: xaringan-themer.css
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+
+```{r xaringan-themer, include = FALSE}
+library(xaringanthemer)
+library(emo)
+duo_accent(
+  primary_color = "#B82F77",
+  secondary_color = "#B82F77",
+  title_slide_text_color = "#FFFFFF",
+  text_bold_color = "#B82F77",
+  header_font_google = google_font("Josefin Sans"),
+  text_font_google   = google_font("Montserrat", "300", "300i"),
+  code_font_google   = google_font("Droid Mono"),
+  text_font_size = "20px",
+  code_font_size = "0.5em",
+  header_h1_font_size = "45px",
+  extra_css = list(
+    ".title-slide h1" = list(
+      "font-size" = "52px",
+      "line-height" = "1.1em"),
+    ".title-slide h2" = list(
+    "margin-top" = "-10px",
+    "margin-bottom" = "40px"),
+    ".title-slide h3" = list(
+    "margin-top" = "40px.",
+    "line-height" = "0.3em"),
+    ".remark-slide-content" = list(
+      "line-height" = "1.1em"),
+    ".hljs-github .hljs" = list(
+    "background" ="#fce1ef" ),
+    ".table.dataTable.display tbody tr.even" = list(
+  "background-color" = "#FFFFFF"),
+  ".remark-slide thead, .remark-slide tfoot, .remark-slide tr:nth-child(even)" = list("background" = "#FFFFFF")
+    
+    )
+  )
+```
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(dev.args = list(png = list(type = "cairo")))
+
+```
+background-image: url(https://jules32.github.io/useR-2019-keynote/img/horst-welcome_to_rstats_twitter.png)
+background-size: 600px
+background-position: 60% 90%
+# Recap of yesterday
+</br> 
+* Getting your data into R 💻
+
+* Data cleaning and transformation 🧹
+
+* Writing clean, readable code 🤩
+
+---
+
+
+background-image: url(https://media.giphy.com/media/l0K4c8bZHJzDCmg6Y/giphy.gif)
+background-size: 500px
+background-position: 50% 80%
+# Goals for today
+</br> 
+* Tidy data ad reshaping
+
+* Binding and joining data
+
+* Visualization with ggplot 🎨
+
+---
+
+class: inverted, middle, center
+# 1. Tidy data
+---
+# What is tidy data?
+</br>
+* One column per **variable**, one **observation** per row
+
+.center[![](https://d33wubrfki0l68.cloudfront.net/6f1ddb544fc5c69a2478e444ab8112fb0eea23f8/91adc/images/tidy-1.png)]
+
+* A way of giving a **clear and coherent structure** to your data
+
+* Makes analysis and data manipulation easier
+
+---
+# Tidying data: from wide to long
+
+.center[![](https://d33wubrfki0l68.cloudfront.net/3aea19108d39606bbe49981acda07696c0c7fcd8/2de65/images/tidy-9.png)]
+
+* With `pivot_longer()`, you can transform data from **wide** to **long** format
+
+* It '**lengthens data**, increasing the number of rows and decreasing the number of columns'
+
+* Syntax:
+
+```{r, eval = FALSE}
+data%>%
+  pivot_longer(cols=, names_to = "name", values_to = "value")
+```
+
+---
+# Tidying data: from wide to long (II)
+```{r, include=FALSE}
+library(tidyverse)
+library(ineq)
+```
+
+```{r, message= FALSE, warning=FALSE}
+wide_data <- read_csv("wide_data.csv")
+
+head(wide_data, 3)
+```
+
+How can we transform into long format?
+
+```{r, eval = FALSE}
+long_data <- data%>%
+              ----(cols = ---, --- = "year", --- = "avg_income")
+```
+---
+# Tidying data: from wide to long (III)
+
+```{r}
+long_data <- wide_data%>%
+              pivot_longer(cols = 2:11, names_to = "year", values_to = "avg_income")
+
+head(long_data)
+```
+---
+# From long to wide: pivot_wider()
+
+.center[![](https://d33wubrfki0l68.cloudfront.net/8350f0dda414629b9d6c354f87acf5c5f722be43/bcb84/images/tidy-8.png)]
+
+* `pivot_wider` performs the inverse transformation than `pivot_longer()`
+
+```{r, eval=FALSE}
+data%>%
+  pivot_wider(names_from = key, values_from = value)
+```
+---
+# pivot_wider() in practice
+
+* Let's imagine we want to compute the difference in average income between the younger and the older working age groups. But our data looks like this:
+
+```{r, include=FALSE}
+data <- read.csv("workshop_data.csv")
+summarized_data <- data%>%
+  mutate(age = 2018 - year_born,
+         age_group  = case_when(age %in% 0:18 ~ "0-18",
+                                age %in% 19:35 ~ "19-35",
+                                age %in% 36:65 ~ "36-65",
+                                age > 65 ~ "65+"))%>%
+  group_by(age_group)%>%
+  summarize(mean = mean(net_income, na.rm = TRUE),
+            min = min(net_income, na.rm = TRUE),
+            max = max(net_income, na.rm = TRUE),
+            gini = Gini(net_income))
+summarized_data
+```
+
+
+```{r}
+summarized_data
+```
+
+* We will need to filter our data, select the relevant columns, transform to wide format and compute the difference
+
+```{r, eval = FALSE}
+summarized_data%>%
+  filter(--- %in% c("---", "---"))%>%
+  select(---,---)%>%
+  pivot_wider(names_from = ---, values_from = ---)%>%
+  mutate(difference = `36-65` - `18-35`)
+```
+
+---
+
+# pivot_wider() in practice
+
+</br>
+```{r}
+summarized_data%>%
+  filter(age_group %in% c("19-35", "36-65"))%>%
+  select(age_group,mean)%>%
+  pivot_wider(names_from = age_group, values_from = mean)%>%
+  mutate(difference = `36-65` - `19-35`)
+```
+
+---
+class: inverse, center, middle
+# 2. Binding and joining data
+---
+# Binding data
+</br> 
+* `rbind` and `cbind` are the most straightforward way of joining dataframes together
+
+```{r, eval = FALSE}
+new_data <- cbind(data1, data2)
+```
+
+.center[![](https://opinionessobreciencia.files.wordpress.com/2016/06/bind-abajo.png)]
+---
+background-image: url(https://data-lessons.github.io/gapminder-R/fig/dplyr-joins.png)
+background-size: 400px
+background-position: 50% 75%
+# Joining data by id
+
+</br>
+* You need to have an **id** or a **'key'** that identifies the rows in the different dataframes
+
+* There are different ways of joining data:
+</br>
+
+
+---
+
+# Joining individual + household data
+
+</br>
+* Let's bring together our individual income dataset with household information. We can do this using **household_id** as a key:
+
+```{r, eval=FALSE}
+joint_data <- ---_join(---, ---, by = "---")
+```
+
+---
+# Joining individual + household data
+</br>
+
+
+```{r}
+hh_data <- read.csv("household_data.csv")
+joint_data <- left_join(data, hh_data, by = "household_id")
+```
+
+We can also write it as:
+
+```{r, eval=FALSE}
+joint_data <- data%>%
+    left_join(hh_data, by = "household_id")
+```
+
+```{r}
+head(joint_data)
+```
+---
+class: inverted, middle, center
+
+# 3. Data visualization with ggplot2
+
+---
+background-image: url(https://pbs.twimg.com/media/DsdIzJ3VsAAbjMW?format=jpg&name=900x900)
+background-size: 500px
+background-position: 50% 90%
+
+# The ggplot2 package
+</br>
+* Part of the tidyverse (you can pipe your way to a ggplot!)
+
+* Layered syntax to create graphics
+
+* Great degree of customization
+
+---
+
+# ggplot2 layered syntax
+
+</br>
+
+```{r, eval = FALSE}
+ggplot2(data= , aes(x=, y= ,…))+
+  geom_*()
+```
+
+* The **data**: your dataset
+
+* Within **aes**, you neet to tell ggplot **how to map variables to the plotting area**
+  + aes include x,y,color,fill, size,shape, …
+  
+* With your chosen `geom`, you're telling ggplot **how to plot your variables**
+  + geom_point(), geom_line(), geom_col(), geom_density()...
+  
+  + Full list of geoms: https://ggplot2.tidyverse.org/reference/
+
+* Layers are connected with the `+` symbol
+
+---
+
+
+
+# A basic ggplot: geom_point()
+
+How related is personal income to household income?
+
+```{r fig.width=6, fig.height=4}
+joint_data%>%
+  mutate(age = 2018 - year_born)%>%
+  filter(age %in% 18:65)%>%
+  ggplot(aes(x=net_income, y = hh_income))+
+  geom_point(alpha = .5)
+```
+
+Don't worry, we'll make it prettier!
+---
+# A basic ggplot: geom_col()
+
+```{r fig.width=6, fig.height=4}
+joint_data%>%
+  mutate(age = 2018 - year_born,
+         age_group  = case_when(age %in% 0:18 ~ "0-18",
+                      age %in% 19:35 ~ "19-35",
+                      age %in% 36:65 ~ "36-65",
+                      age > 65 ~ "65+"))%>%
+  group_by(age_group)%>%
+  summarize(avg_income = mean(hh_income/units_consumption, na.rm = TRUE))%>%
+  ggplot(aes(x= age_group, y= avg_income, fill = age_group))+
+  geom_col()
+  
+```
+---
+
+# Your turn to build a line plot
+
+Let's work on the wide_data.csv that we converted to long format earlier. You should produce a line plot (geom_line()). Map year to x, avg_income to y and color to age_group.
+
+```{r, eval = FALSE}
+wide_data%>%
+              pivot_longer(cols = 2:11, names_to = "year", values_to = "avg_income")%>%
+    mutate(year = as.numeric(year))%>%
+  ---(aes(--- = ---, --- = ---, color = ---))+
+  ---()
+
+```
+
+
+```{r, echo = FALSE, fig.width=7, fig.height=4}
+p <- wide_data%>%
+              pivot_longer(cols = 2:11, names_to = "year", values_to = "avg_income")%>%
+  mutate(year = as.numeric(year))%>%
+  ggplot(aes(x=year, y = avg_income, color = age_group))+
+  geom_line()
+
+p
+```
+---
+# Customizing your ggplots
+
+* To customize **non-data** components of your plot, we use **themes**
+
+* You can use built-in ggplot themes or create your own
+
+* All theme components can be found here https://ggplot2.tidyverse.org/reference/theme.html
+
+* If you want to combine a built-in theme with your own customization, remember to write your `theme()` function <int>after</int> the built-in theme call
+
+```{r fig.width=7, fig.height=4}
+p+
+  theme_minimal()
+```
+---
+# Customizing your ggplots (II)
+
+* Changing text can be done with `labs()`
+
+```{r, fig.width=7, fig.height=4}
+p +
+  theme_minimal()+
+  labs(title = "Disposable income by age group, Spain",
+    x = "year",
+    y = "Equivalized disposable income",
+    color = "Age group")
+```
+
+---
+
+# Customizing your ggplots (III)
+
+* It is possible to change the **limits**, the **breaks** and the **labels** of any aes in ggplot. This is done through scales.
+
+* Both our x and y are continuous, and their elements can be modified within `scale_x_continuous()` and `scale_y_continuous()`
+
+
+.pull-left[
+```{r plot-label, eval=FALSE}
+p +
+  theme_minimal()+
+  labs(title = "Disposable income by age group, Spain",
+    x = "year",
+    y = "Equivalized disposable income",
+    color = "Age group")+
+  scale_x_continuous(breaks = seq(2008, 2017, by = 2))
+```
+]
+
+.pull-right[
+```{r plot-label-out, ref.label="plot-label", echo=FALSE}
+```
+]
+---
+# Customizing your ggplots (IV)
+
+* When having discrete scales in ggplot2, like color in our case, there are two functions that you can use
+* If you only want to change limits, breaks and labels, these can be modified within `scale_color_discrete()`
+* If you want to change **the values of the colors** as well, you need to use `scale_color_manual()`to change the **values** argument
+  
+  .pull-left[
+```{r plot-label2, eval=FALSE}
+p +
+  labs(title = "Disposable income by age group, Spain",
+    x = "year",
+    y = "Equivalized disposable income",
+    color = "Age group")+
+  scale_x_continuous(breaks = seq(2008, 2017, by = 2))+
+  scale_color_manual(values = c("#B82F77", "#5E4764", "#9873A2", "#BEB1C1"))+
+  theme_minimal()
+```
+]
+
+.pull-right[
+```{r plot-label-out2, ref.label="plot-label2", echo=FALSE}
+```
+]
+
+---
+
+
+background-image: url(https://i.imgur.com/R8I8TES.png)
+background-size: 800px
+background-position: 50% 50%
+---
+# Final touch
+```{r, eval = FALSE}
+wide_data%>%
+  pivot_longer(cols = 2:11, names_to = "year", values_to = "avg_income")%>%
+  mutate(year = as.numeric(year))%>%
+  ggplot(aes(x=year, y = avg_income, color = age_group))+
+  geom_line(size = 1.5)+
+  labs(title = "Disposable income by age group, Spain",
+       x = NULL,
+       y = "Equivalized\ndisposable\nincome",
+       color = "Age:",
+       caption = "Data: Encuesta de Condiciones de Vida")+
+  scale_x_continuous(breaks = seq(2008, 2017, by = 2))+
+  scale_y_continuous(labels = function(x) paste0(x, "€"))+
+  scale_color_manual(values = c("#B82F77", "#5E4764", "#9873A2", "#BEB1C1"))+
+  theme_minimal()+
+  theme(legend.position = "top",
+        axis.title.y = element_text(angle = 0, color = "grey40", 
+                                    size = 8, hjust = 0),
+        plot.title = element_text(face = "bold", hjust = 0.5),
+        plot.caption = element_text(color = "grey40"))
+```
+
+---
+
+class: inverse, middle, center
+
+# Any questions?
